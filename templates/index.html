@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DigiFriend</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 50px;
+        }
+        img {
+            max-width: 200px;
+            max-height: 200px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #playIntrolineButton {
+            display: none; /* This line hides the playIntrolineButton */
+        }
+    </style>
+</head>
+<body>
+    {% if final_emotion == 'happy' %}
+        <img src="{{ url_for('static', filename='happy.png') }}" alt="Happy Emotion">
+    {% elif final_emotion == 'sad' %}
+        <img src="{{ url_for('static', filename='sad.png') }}" alt="Sad Emotion">
+    {% elif final_emotion == 'disgust' %}
+        <img src="{{ url_for('static', filename='disgust.png') }}" alt="Disgust Emotion">
+    {% elif final_emotion == 'surprise' %}
+        <img src="{{ url_for('static', filename='surprise.png') }}" alt="Surprise Emotion">
+    {% elif final_emotion == 'fear' %}
+        <img src="{{ url_for('static', filename='fear.png') }}" alt="Fear Emotion">
+    {% elif final_emotion == 'neutral' %}
+        <img src="{{ url_for('static', filename='neutral.png') }}" alt="Neutral Emotion">
+    {% elif final_emotion == 'angry' %}
+        <img src="{{ url_for('static', filename='angry.png') }}" alt="Angry Emotion">
+    {% endif %}
+
+    <p id="transcript">{{ response }}</p>
+
+    <button id="speakButton">Speak</button>
+
+    <button id="playIntrolineButton">Play Introline</button>
+
+    <audio id="introlineAudio" gesture="media">
+        <source src="data:audio/mpeg;base64,{{ audio_base64 }}" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        const speakButton = document.getElementById('speakButton');
+        const transcriptElement = document.getElementById('transcript');
+        const playIntrolineButton = document.getElementById('playIntrolineButton');
+
+        speakButton.addEventListener('click', function() {
+            startRecording();
+        });
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    const mediaRecorder = new MediaRecorder(stream);
+                    const chunks = [];
+
+                    mediaRecorder.start();
+
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                    }, 5000); // Stop recording after 5 seconds
+
+                    mediaRecorder.ondataavailable = event => {
+                        chunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'audio/webm' });
+                        sendAudioToServer(blob);
+                    };
+                })
+                .catch(error => {
+                    console.error('Error accessing microphone:', error);
+                });
+        }
+
+        function sendAudioToServer(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'audio.webm');
+
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                } else {
+                    transcriptElement.textContent = data.message;
+                    const audioElement = document.getElementById('responseAudio');
+                    audioElement.src = `data:audio/mpeg;base64,${data.audio_base64}`;
+                    audioElement.play().catch(error => {
+                        if (error.name === 'NotAllowedError') {
+                            console.log('User interaction is required to play the audio on this device.');
+                        } else {
+                            console.error('Error playing the audio:', error);
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function playAudio() {
+            const introlineAudio = document.getElementById('introlineAudio');
+            introlineAudio.play().catch(error => {
+                if (error.name === 'NotAllowedError') {
+                    console.log('User interaction is required to play the audio on this device.');
+                } else {
+                    console.error('Error playing the audio:', error);
+                }
+            });
+        }
+
+        playIntrolineButton.addEventListener('click', playAudio);
+
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                playIntrolineButton.click();
+            }, 2000); // 2 seconds delay
+        });
+    </script>
+<audio id="responseAudio" gesture="media">
+    Your browser does not support the audio element.
+</audio>
+</body>
+</html>
