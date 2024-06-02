@@ -11,7 +11,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from fer import FER
 import cv2
-from cv2 import VideoCapture
 import speech_recognition as sr
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import torch
